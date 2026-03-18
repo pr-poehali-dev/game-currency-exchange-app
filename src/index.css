@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* GamePay design tokens */
+:root {
+  --c-bg: #f8f8f7;
+  --c-surface: #ffffff;
+  --c-card: #ffffff;
+  --c-border: #e8e8e6;
+  --c-text: #111110;
+  --c-muted: #8a8a85;
+  --c-accent: #2563eb;
+  --c-accent-dim: #93b4f7;
+  --c-accent-bg: #eff5ff;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
