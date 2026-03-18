@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Icon from "@/components/ui/icon";
 
 type Tab = "home" | "wallet" | "withdraw" | "history";
@@ -30,6 +30,42 @@ const TRANSACTIONS: Transaction[] = [
   { id: 3, type: "in", amount: 3200, desc: "Турнир — призовые", date: "15 мар" },
   { id: 4, type: "out", amount: 1200, desc: "Вывод в ЮMoney", date: "12 мар" },
   { id: 5, type: "in", amount: 600, desc: "Продажа скина", date: "10 мар" },
+];
+
+interface Game {
+  id: string;
+  name: string;
+  genre: string;
+  currency: string;
+  icon: string;
+}
+
+const GAMES: Game[] = [
+  { id: "cs2", name: "Counter-Strike 2", genre: "Шутер", currency: "Steam ₽", icon: "🎯" },
+  { id: "dota2", name: "Dota 2", genre: "MOBA", currency: "Steam ₽", icon: "⚔️" },
+  { id: "pubg", name: "PUBG", genre: "Батл-рояль", currency: "G-Coin", icon: "🪖" },
+  { id: "fortnite", name: "Fortnite", genre: "Батл-рояль", currency: "V-Bucks", icon: "🏗️" },
+  { id: "minecraft", name: "Minecraft", genre: "Выживание", currency: "Minecoins", icon: "⛏️" },
+  { id: "lol", name: "League of Legends", genre: "MOBA", currency: "RP", icon: "🏆" },
+  { id: "valorant", name: "Valorant", genre: "Шутер", currency: "VP", icon: "🔫" },
+  { id: "genshin", name: "Genshin Impact", genre: "RPG", currency: "Primogems", icon: "🌸" },
+  { id: "wow", name: "World of Warcraft", genre: "MMO", currency: "Gold", icon: "🐉" },
+  { id: "roblox", name: "Roblox", genre: "Платформер", currency: "Robux", icon: "🟥" },
+  { id: "apex", name: "Apex Legends", genre: "Батл-рояль", currency: "Apex Coins", icon: "💥" },
+  { id: "gta5", name: "GTA Online", genre: "Экшен", currency: "GTA$", icon: "🚗" },
+  { id: "rust", name: "Rust", genre: "Выживание", currency: "Steam ₽", icon: "🔧" },
+  { id: "lineage2", name: "Lineage 2", genre: "MMO", currency: "Adena", icon: "🗡️" },
+  { id: "warframe", name: "Warframe", genre: "Шутер", currency: "Platinum", icon: "🤖" },
+  { id: "hearthstone", name: "Hearthstone", genre: "Карточная", currency: "Gold", icon: "🃏" },
+  { id: "diablo4", name: "Diablo IV", genre: "RPG", currency: "Platinum", icon: "😈" },
+  { id: "overwatch2", name: "Overwatch 2", genre: "Шутер", currency: "Coins", icon: "🦸" },
+  { id: "ffxiv", name: "Final Fantasy XIV", genre: "MMO", currency: "MGP", icon: "✨" },
+  { id: "albion", name: "Albion Online", genre: "MMO", currency: "Silver", icon: "🛡️" },
+  { id: "poe", name: "Path of Exile", genre: "RPG", currency: "Chaos Orbs", icon: "🌀" },
+  { id: "tf2", name: "Team Fortress 2", genre: "Шутер", currency: "Keys", icon: "🔑" },
+  { id: "warzone", name: "Warzone", genre: "Батл-рояль", currency: "COD Points", icon: "💣" },
+  { id: "lost-ark", name: "Lost Ark", genre: "MMO", currency: "Gold", icon: "⚡" },
+  { id: "other", name: "Другая игра", genre: "Своя", currency: "GP", icon: "🎮" },
 ];
 
 const INITIAL_HISTORY: WithdrawRequest[] = [
@@ -203,6 +239,25 @@ export default function Index() {
   const [submitted, setSubmitted] = useState(false);
   const [history, setHistory] = useState<WithdrawRequest[]>(INITIAL_HISTORY);
   const [filterStatus, setFilterStatus] = useState<WithdrawStatus | "all">("all");
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  const [gameSearch, setGameSearch] = useState("");
+  const [customGameName, setCustomGameName] = useState("");
+  const [showGameSelect, setShowGameSelect] = useState(true);
+
+  const filteredGames = useMemo(() =>
+    GAMES.filter(g =>
+      g.name.toLowerCase().includes(gameSearch.toLowerCase()) ||
+      g.genre.toLowerCase().includes(gameSearch.toLowerCase())
+    ), [gameSearch]);
+
+  const handleSelectGame = (game: Game) => {
+    if (game.id === "other" && customGameName.trim()) {
+      setSelectedGame({ ...game, name: customGameName.trim() });
+    } else if (game.id !== "other") {
+      setSelectedGame(game);
+    }
+    setShowGameSelect(false);
+  };
 
   const setField = (key: keyof RequisiteFields) => (val: string) => {
     setReq((prev) => ({ ...prev, [key]: val }));
@@ -241,6 +296,75 @@ export default function Index() {
   const rate = 0.85;
   const convertedAmount = amount ? Math.floor(parseFloat(amount) * rate) : 0;
 
+  /* ── Экран выбора игры ── */
+  if (showGameSelect) {
+    return (
+      <div className="min-h-screen bg-[var(--c-bg)] font-golos text-[var(--c-text)] flex flex-col">
+        <div className="max-w-2xl mx-auto w-full px-6 py-8 flex-1 flex flex-col">
+          {/* Logo */}
+          <div className="flex items-center gap-2 mb-8">
+            <div className="w-7 h-7 rounded-full bg-[var(--c-accent)] flex items-center justify-center">
+              <Icon name="Zap" size={14} className="text-white" />
+            </div>
+            <span className="font-semibold text-sm tracking-wide">GamePay</span>
+          </div>
+
+          <h1 className="text-2xl font-bold mb-1">Выберите игру</h1>
+          <p className="text-sm text-[var(--c-muted)] mb-5">Из какой игры хотите вывести валюту?</p>
+
+          {/* Search */}
+          <div className="relative mb-4">
+            <Icon name="Search" size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--c-muted)]" />
+            <input
+              type="text"
+              value={gameSearch}
+              onChange={(e) => setGameSearch(e.target.value)}
+              placeholder="Поиск игры..."
+              className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-[var(--c-accent)] transition-colors text-[var(--c-text)] placeholder:text-[var(--c-muted)]"
+            />
+          </div>
+
+          {/* Games grid */}
+          <div className="flex-1 overflow-y-auto space-y-2 pb-4">
+            {filteredGames.map((game) => (
+              <div key={game.id}>
+                {game.id === "other" && (
+                  <div className="mb-2 mt-2">
+                    <input
+                      type="text"
+                      value={customGameName}
+                      onChange={(e) => setCustomGameName(e.target.value)}
+                      placeholder="Введите название игры..."
+                      className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--c-accent)] transition-colors text-[var(--c-text)] placeholder:text-[var(--c-muted)]"
+                    />
+                  </div>
+                )}
+                <button
+                  onClick={() => handleSelectGame(game)}
+                  disabled={game.id === "other" && !customGameName.trim()}
+                  className="w-full flex items-center gap-4 rounded-xl bg-[var(--c-surface)] border border-[var(--c-border)] px-4 py-3.5 text-left hover:border-[var(--c-accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span className="text-2xl leading-none">{game.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{game.id === "other" && customGameName.trim() ? customGameName.trim() : game.name}</p>
+                    <p className="text-xs text-[var(--c-muted)] mt-0.5">{game.genre} · {game.currency}</p>
+                  </div>
+                  <Icon name="ChevronRight" size={16} className="text-[var(--c-muted)] flex-shrink-0" />
+                </button>
+              </div>
+            ))}
+
+            {filteredGames.length === 0 && (
+              <div className="text-center py-10 text-sm text-[var(--c-muted)]">
+                Игра не найдена — выберите «Другая игра» внизу
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--c-bg)] font-golos text-[var(--c-text)]">
       {/* Header */}
@@ -252,6 +376,15 @@ export default function Index() {
           <span className="font-semibold text-sm tracking-wide">GamePay</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowGameSelect(true)}
+            className="flex items-center gap-2 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-lg px-3 py-1.5 hover:border-[var(--c-accent)] transition-colors"
+            title="Сменить игру"
+          >
+            <span className="text-base leading-none">{selectedGame?.icon}</span>
+            <span className="text-xs font-medium max-w-[90px] truncate">{selectedGame?.name}</span>
+            <Icon name="ChevronDown" size={13} className="text-[var(--c-muted)]" />
+          </button>
           <div className="w-8 h-8 rounded-full bg-[var(--c-surface)] border border-[var(--c-border)] flex items-center justify-center">
             <Icon name="Bell" size={15} className="text-[var(--c-muted)]" />
           </div>
@@ -269,17 +402,20 @@ export default function Index() {
           <div className="animate-fade-in">
             {/* Balance Card */}
             <div className="mt-8 rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-8">
-              <p className="text-xs uppercase tracking-widest text-[var(--c-muted)] mb-3">Игровой баланс</p>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg leading-none">{selectedGame?.icon}</span>
+                <p className="text-xs uppercase tracking-widest text-[var(--c-muted)]">{selectedGame?.name} · Баланс</p>
+              </div>
               <div className="flex items-end gap-3">
                 <span className="text-5xl font-bold leading-none tracking-tight">
                   {gameBalance.toLocaleString("ru")}
                 </span>
-                <span className="text-xl text-[var(--c-muted)] mb-1">GP</span>
+                <span className="text-xl text-[var(--c-muted)] mb-1">{selectedGame?.currency ?? "GP"}</span>
               </div>
               <div className="mt-4 pt-4 border-t border-[var(--c-border)] flex items-center gap-2">
                 <Icon name="TrendingUp" size={14} className="text-[var(--c-accent)]" />
                 <span className="text-sm text-[var(--c-muted)]">
-                  ≈ {Math.floor(gameBalance * rate).toLocaleString("ru")} ₽ · курс 1 GP = {rate} ₽
+                  ≈ {Math.floor(gameBalance * rate).toLocaleString("ru")} ₽ · курс 1 {selectedGame?.currency ?? "GP"} = {rate} ₽
                 </span>
               </div>
             </div>
