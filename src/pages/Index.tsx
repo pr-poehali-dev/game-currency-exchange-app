@@ -29,12 +29,72 @@ const WITHDRAW_METHODS = [
   { id: "bank" as WithdrawMethod, label: "Банковский перевод", icon: "Building2", fee: "0%", time: "3–5 дней" },
 ];
 
+interface RequisiteFields {
+  // card
+  cardNumber?: string;
+  cardHolder?: string;
+  // sbp
+  sbpPhone?: string;
+  sbpBank?: string;
+  // yoomoney / qiwi
+  walletNumber?: string;
+  // crypto
+  cryptoAddress?: string;
+  cryptoNetwork?: string;
+  // bank
+  bankBik?: string;
+  bankAccount?: string;
+  bankFio?: string;
+}
+
+const BANKS = ["Сбербанк", "Тинькофф", "ВТБ", "Альфа-Банк", "Газпромбанк", "Россельхозбанк", "Открытие", "Другой"];
+const CRYPTO_NETWORKS = ["TRC-20 (USDT)", "ERC-20 (USDT)", "BEP-20 (USDT)", "Bitcoin (BTC)", "Ethereum (ETH)", "TON"];
+
+function FieldInput({ label, value, onChange, placeholder, type = "text" }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+}) {
+  return (
+    <div>
+      <label className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-1.5 block">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--c-accent)] transition-colors text-[var(--c-text)] placeholder:text-[var(--c-muted)]"
+      />
+    </div>
+  );
+}
+
+function FieldSelect({ label, value, onChange, options }: {
+  label: string; value: string; onChange: (v: string) => void; options: string[];
+}) {
+  return (
+    <div>
+      <label className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-1.5 block">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--c-accent)] transition-colors text-[var(--c-text)] appearance-none cursor-pointer"
+      >
+        <option value="">Выберите...</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
 export default function Index() {
   const [tab, setTab] = useState<Tab>("home");
   const [selectedMethod, setSelectedMethod] = useState<WithdrawMethod | null>(null);
   const [amount, setAmount] = useState("");
   const [gameBalance] = useState(12_450);
   const [realBalance] = useState(3_820);
+  const [req, setReq] = useState<RequisiteFields>({});
+
+  const setField = (key: keyof RequisiteFields) => (val: string) =>
+    setReq((prev) => ({ ...prev, [key]: val }));
 
   const rate = 0.85;
   const convertedAmount = amount ? Math.floor(parseFloat(amount) * rate) : 0;
@@ -263,10 +323,11 @@ export default function Index() {
             </div>
 
             {selectedMethod && (
-              <div className="animate-fade-in rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-6 mb-4">
-                <h3 className="font-semibold mb-4">Сумма вывода</h3>
-                <div className="mb-4">
-                  <label className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-2 block">Игровая валюта (GP)</label>
+              <div className="animate-fade-in space-y-3 mb-4">
+                {/* Amount */}
+                <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-6">
+                  <h3 className="font-semibold mb-4">Сумма вывода</h3>
+                  <label className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-1.5 block">Игровая валюта (GP)</label>
                   <input
                     type="number"
                     value={amount}
@@ -287,28 +348,125 @@ export default function Index() {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-[var(--c-surface)] p-4 mb-4 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-[var(--c-muted)]">Вы выводите</span>
-                    <span className="font-medium">{amount || 0} GP</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--c-muted)]">Курс</span>
-                    <span className="font-medium">{rate} ₽ / GP</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[var(--c-muted)]">Комиссия</span>
-                    <span className="font-medium">{WITHDRAW_METHODS.find((m) => m.id === selectedMethod)?.fee}</span>
-                  </div>
-                  <div className="border-t border-[var(--c-border)] pt-2 flex justify-between font-semibold">
-                    <span>Получите</span>
-                    <span className="text-[var(--c-accent)]">≈ {convertedAmount.toLocaleString("ru")} ₽</span>
+                {/* Requisites */}
+                <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-6">
+                  <h3 className="font-semibold mb-4">Реквизиты</h3>
+                  <div className="space-y-3">
+                    {selectedMethod === "card" && (
+                      <>
+                        <FieldInput
+                          label="Номер карты"
+                          value={req.cardNumber ?? ""}
+                          onChange={setField("cardNumber")}
+                          placeholder="0000 0000 0000 0000"
+                        />
+                        <FieldInput
+                          label="Имя держателя (латиницей)"
+                          value={req.cardHolder ?? ""}
+                          onChange={setField("cardHolder")}
+                          placeholder="IVAN IVANOV"
+                        />
+                      </>
+                    )}
+
+                    {selectedMethod === "sbp" && (
+                      <>
+                        <FieldInput
+                          label="Номер телефона"
+                          value={req.sbpPhone ?? ""}
+                          onChange={setField("sbpPhone")}
+                          placeholder="+7 900 000-00-00"
+                          type="tel"
+                        />
+                        <FieldSelect
+                          label="Банк получателя"
+                          value={req.sbpBank ?? ""}
+                          onChange={setField("sbpBank")}
+                          options={BANKS}
+                        />
+                      </>
+                    )}
+
+                    {(selectedMethod === "yoomoney" || selectedMethod === "qiwi") && (
+                      <FieldInput
+                        label={selectedMethod === "yoomoney" ? "Номер кошелька ЮMoney" : "Номер кошелька QIWI"}
+                        value={req.walletNumber ?? ""}
+                        onChange={setField("walletNumber")}
+                        placeholder={selectedMethod === "yoomoney" ? "41001XXXXXXXXX" : "+7 900 000-00-00"}
+                      />
+                    )}
+
+                    {selectedMethod === "crypto" && (
+                      <>
+                        <FieldSelect
+                          label="Сеть и монета"
+                          value={req.cryptoNetwork ?? ""}
+                          onChange={setField("cryptoNetwork")}
+                          options={CRYPTO_NETWORKS}
+                        />
+                        <FieldInput
+                          label="Адрес кошелька"
+                          value={req.cryptoAddress ?? ""}
+                          onChange={setField("cryptoAddress")}
+                          placeholder="T... / 0x... / bc1..."
+                        />
+                        <p className="text-xs text-[var(--c-muted)] bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                          ⚠️ Проверьте адрес и сеть — ошибочные переводы невозможно вернуть
+                        </p>
+                      </>
+                    )}
+
+                    {selectedMethod === "bank" && (
+                      <>
+                        <FieldInput
+                          label="ФИО получателя"
+                          value={req.bankFio ?? ""}
+                          onChange={setField("bankFio")}
+                          placeholder="Иванов Иван Иванович"
+                        />
+                        <FieldInput
+                          label="БИК банка"
+                          value={req.bankBik ?? ""}
+                          onChange={setField("bankBik")}
+                          placeholder="044525225"
+                          type="number"
+                        />
+                        <FieldInput
+                          label="Расчётный счёт"
+                          value={req.bankAccount ?? ""}
+                          onChange={setField("bankAccount")}
+                          placeholder="40817810XXXXXXXXXX"
+                          type="number"
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
 
-                <button className="w-full bg-[var(--c-accent)] text-white rounded-xl py-3.5 font-semibold hover:opacity-90 transition-opacity">
-                  Продолжить вывод
-                </button>
+                {/* Summary */}
+                <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-6">
+                  <div className="space-y-2 text-sm mb-4">
+                    <div className="flex justify-between">
+                      <span className="text-[var(--c-muted)]">Вы выводите</span>
+                      <span className="font-medium">{amount || 0} GP</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[var(--c-muted)]">Курс</span>
+                      <span className="font-medium">{rate} ₽ / GP</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[var(--c-muted)]">Комиссия</span>
+                      <span className="font-medium">{WITHDRAW_METHODS.find((m) => m.id === selectedMethod)?.fee}</span>
+                    </div>
+                    <div className="border-t border-[var(--c-border)] pt-2 flex justify-between font-semibold">
+                      <span>Получите</span>
+                      <span className="text-[var(--c-accent)]">≈ {convertedAmount.toLocaleString("ru")} ₽</span>
+                    </div>
+                  </div>
+                  <button className="w-full bg-[var(--c-accent)] text-white rounded-xl py-3.5 font-semibold hover:opacity-90 transition-opacity">
+                    Подтвердить вывод
+                  </button>
+                </div>
               </div>
             )}
 
