@@ -1,7 +1,9 @@
 import { useState, useMemo } from "react";
 import Icon from "@/components/ui/icon";
 
-type Tab = "home" | "wallet" | "withdraw" | "history";
+type Tab = "home" | "wallet" | "withdraw" | "history" | "admin";
+
+const PLATFORM_FEE = 0.02; // 2% комиссия платформы
 type WithdrawMethod = "card" | "qiwi" | "yoomoney" | "sbp" | "crypto" | "bank";
 type WithdrawStatus = "pending" | "processing" | "done" | "rejected";
 
@@ -11,9 +13,11 @@ interface WithdrawRequest {
   methodLabel: string;
   amountGp: number;
   amountRub: number;
+  commission: number;
   status: WithdrawStatus;
   date: string;
   requisite: string;
+  game?: string;
 }
 
 interface Transaction {
@@ -89,10 +93,10 @@ const GAMES: Game[] = [
 ];
 
 const INITIAL_HISTORY: WithdrawRequest[] = [
-  { id: 1, method: "card", methodLabel: "Банковская карта", amountGp: 2000, amountRub: 1700, status: "done", date: "17 мар, 14:32", requisite: "**** 4231" },
-  { id: 2, method: "sbp", methodLabel: "СБП", amountGp: 1500, amountRub: 1275, status: "processing", date: "18 мар, 09:15", requisite: "+7 900 ***-**-12" },
-  { id: 3, method: "crypto", methodLabel: "Криптовалюта", amountGp: 5000, amountRub: 4250, status: "pending", date: "18 мар, 11:40", requisite: "TRC-20 · T***...abc" },
-  { id: 4, method: "yoomoney", methodLabel: "ЮMoney", amountGp: 800, amountRub: 680, status: "rejected", date: "12 мар, 18:05", requisite: "41001***XXX" },
+  { id: 1, method: "card",     methodLabel: "Банковская карта", amountGp: 2000, amountRub: 1700, commission: 34,   status: "done",       date: "17 мар, 14:32", requisite: "**** 4231",        game: "Counter-Strike 2" },
+  { id: 2, method: "sbp",      methodLabel: "СБП",              amountGp: 1500, amountRub: 1275, commission: 25,   status: "processing", date: "18 мар, 09:15", requisite: "+7 900 ***-**-12", game: "Dota 2" },
+  { id: 3, method: "crypto",   methodLabel: "Криптовалюта",     amountGp: 5000, amountRub: 4250, commission: 85,   status: "pending",    date: "18 мар, 11:40", requisite: "TRC-20 · T***...abc", game: "Genshin Impact" },
+  { id: 4, method: "yoomoney", methodLabel: "ЮMoney",           amountGp: 800,  amountRub: 680,  commission: 13.6, status: "rejected",   date: "12 мар, 18:05", requisite: "41001***XXX",      game: "Roblox" },
 ];
 
 const STATUS_CONFIG: Record<WithdrawStatus, { label: string; color: string; bg: string; icon: string }> = {
@@ -366,15 +370,19 @@ export default function Index() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
     const methodData = WITHDRAW_METHODS.find(m => m.id === selectedMethod)!;
+    const amountRub = Math.floor(parseFloat(amount) * rate);
+    const commission = Math.floor(amountRub * PLATFORM_FEE * 100) / 100;
     const newEntry: WithdrawRequest = {
       id: Date.now(),
       method: selectedMethod,
       methodLabel: methodData.label,
       amountGp: parseFloat(amount),
-      amountRub: Math.floor(parseFloat(amount) * rate),
+      amountRub,
+      commission,
       status: "pending",
       date: new Date().toLocaleString("ru", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
       requisite: getRequisiteLabel(selectedMethod, req),
+      game: selectedGame?.name,
     };
     setHistory((prev) => [newEntry, ...prev]);
     setSubmitted(true);
@@ -957,15 +965,19 @@ export default function Index() {
                   <div className="space-y-2 text-sm mb-4">
                     <div className="flex justify-between">
                       <span className="text-[var(--c-muted)]">Вы выводите</span>
-                      <span className="font-medium">{amount || 0} GP</span>
+                      <span className="font-medium">{amount || 0} {selectedGame?.currency ?? "GP"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[var(--c-muted)]">Курс</span>
-                      <span className="font-medium">{rate} ₽ / GP</span>
+                      <span className="font-medium">{rate} ₽ / {selectedGame?.currency ?? "GP"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[var(--c-muted)]">Комиссия</span>
+                      <span className="text-[var(--c-muted)]">Комиссия метода</span>
                       <span className="font-medium">{WITHDRAW_METHODS.find((m) => m.id === selectedMethod)?.fee}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[var(--c-muted)]">Комиссия платформы</span>
+                      <span className="font-medium text-amber-600">−{Math.floor(convertedAmount * PLATFORM_FEE * 100) / 100} ₽ (2%)</span>
                     </div>
                     <div className="border-t border-[var(--c-border)] pt-2 flex justify-between font-semibold">
                       <span>Получите</span>
@@ -1101,6 +1113,108 @@ export default function Index() {
             </div>
           </div>
         )}
+
+        {/* ADMIN TAB */}
+        {tab === "admin" && (() => {
+          const doneHistory = history.filter(h => h.status === "done");
+          const allCommission = history.reduce((s, h) => s + (h.commission ?? 0), 0);
+          const doneCommission = doneHistory.reduce((s, h) => s + (h.commission ?? 0), 0);
+          const pendingCommission = history.filter(h => h.status === "pending" || h.status === "processing").reduce((s, h) => s + (h.commission ?? 0), 0);
+          const totalVolume = history.reduce((s, h) => s + h.amountRub, 0);
+          const byGame = history.reduce<Record<string, number>>((acc, h) => {
+            const g = h.game ?? "Неизвестно";
+            acc[g] = (acc[g] ?? 0) + (h.commission ?? 0);
+            return acc;
+          }, {});
+          const topGames = Object.entries(byGame).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+          return (
+            <div className="animate-fade-in">
+              <div className="mt-8 mb-6 flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold">Панель администратора</h1>
+                  <p className="text-sm text-[var(--c-muted)] mt-1">Комиссия платформы · {PLATFORM_FEE * 100}% с каждого вывода</p>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center">
+                  <Icon name="ShieldCheck" size={18} className="text-amber-600" />
+                </div>
+              </div>
+
+              {/* KPI cards */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-5">
+                  <p className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-2">Заработано всего</p>
+                  <p className="text-3xl font-bold text-green-600">{doneCommission.toLocaleString("ru", { maximumFractionDigits: 0 })} ₽</p>
+                  <p className="text-xs text-[var(--c-muted)] mt-1">с выполненных заявок</p>
+                </div>
+                <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-5">
+                  <p className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-2">Ожидает выплаты</p>
+                  <p className="text-3xl font-bold text-amber-600">{pendingCommission.toLocaleString("ru", { maximumFractionDigits: 0 })} ₽</p>
+                  <p className="text-xs text-[var(--c-muted)] mt-1">в обработке</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[
+                  { label: "Всего заявок", value: String(history.length) },
+                  { label: "Оборот", value: `${totalVolume.toLocaleString("ru")} ₽` },
+                  { label: "Начислено", value: `${allCommission.toLocaleString("ru", { maximumFractionDigits: 0 })} ₽` },
+                ].map(s => (
+                  <div key={s.label} className="rounded-xl bg-[var(--c-surface)] border border-[var(--c-border)] p-4 text-center">
+                    <p className="font-bold text-sm">{s.value}</p>
+                    <p className="text-xs text-[var(--c-muted)] mt-1 leading-tight">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Top games */}
+              <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-6 mb-4">
+                <h3 className="font-semibold mb-4">Топ игр по прибыли</h3>
+                <div className="space-y-3">
+                  {topGames.map(([game, comm], i) => {
+                    const maxComm = topGames[0][1];
+                    const pct = Math.round((comm / maxComm) * 100);
+                    return (
+                      <div key={game}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium flex items-center gap-2">
+                            <span className="text-xs text-[var(--c-muted)] w-4">{i + 1}</span>
+                            {game}
+                          </span>
+                          <span className="text-sm font-bold text-green-600">{comm.toLocaleString("ru", { maximumFractionDigits: 0 })} ₽</span>
+                        </div>
+                        <div className="h-1.5 bg-[var(--c-surface)] rounded-full overflow-hidden">
+                          <div className="h-full bg-[var(--c-accent)] rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Recent commissions */}
+              <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-6">
+                <h3 className="font-semibold mb-4">Последние начисления</h3>
+                <div className="space-y-2">
+                  {history.slice(0, 6).map(item => (
+                    <div key={item.id} className="flex items-center justify-between py-2.5 border-b border-[var(--c-border)] last:border-0">
+                      <div>
+                        <p className="text-sm font-medium">{item.game ?? "—"}</p>
+                        <p className="text-xs text-[var(--c-muted)] mt-0.5">{item.methodLabel} · {item.date}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-bold ${item.status === "done" ? "text-green-600" : item.status === "rejected" ? "text-[var(--c-muted)] line-through" : "text-amber-600"}`}>
+                          {item.status === "rejected" ? "0" : `+${(item.commission ?? 0).toLocaleString("ru", { maximumFractionDigits: 0 })}`} ₽
+                        </p>
+                        <p className="text-xs text-[var(--c-muted)]">{item.amountRub.toLocaleString("ru")} ₽ оборот</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </main>
 
       {/* Bottom Nav */}
@@ -1112,6 +1226,7 @@ export default function Index() {
               { id: "wallet" as Tab, label: "Кошелёк", icon: "Wallet" },
               { id: "withdraw" as Tab, label: "Вывести", icon: "ArrowUpRight" },
               { id: "history" as Tab, label: "История", icon: "ClipboardList" },
+              { id: "admin" as Tab, label: "Админ", icon: "ShieldCheck" },
             ] as const
           ).map((n) => (
             <button
