@@ -486,7 +486,7 @@ export default function Index() {
             <span className="text-xs font-medium text-[var(--c-muted)]">{gameBalance.toLocaleString("ru")}</span>
           </button>
           <button
-            onClick={() => setShowGameSelect(true)}
+            onClick={() => { setGameBalance(0); setBalanceDraft(""); setBalanceError(""); setShowGameSelect(true); }}
             className="flex items-center gap-2 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-lg px-3 py-1.5 hover:border-[var(--c-accent)] transition-colors"
             title="Сменить игру"
           >
