@@ -349,6 +349,9 @@ export default function Index() {
           <h1 className="text-2xl font-bold mb-1">Выберите игру</h1>
           <p className="text-sm text-[var(--c-muted)] mb-5">Из какой игры хотите вывести валюту?</p>
 
+          {/* Quick preview calculator */}
+          <PreviewCalc />
+
           {/* Search */}
           <div className="relative mb-4">
             <Icon name="Search" size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--c-muted)]" />
