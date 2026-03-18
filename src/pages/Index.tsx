@@ -32,40 +32,60 @@ const TRANSACTIONS: Transaction[] = [
   { id: 5, type: "in", amount: 600, desc: "Продажа скина", date: "10 мар" },
 ];
 
+type CurrencyType = "coins" | "crystals" | "gold" | "tokens" | "points" | "keys" | "rubles";
+
+interface CurrencyInfo {
+  type: CurrencyType;
+  label: string;      // название типа валюты
+  emoji: string;      // иконка типа
+  rate: number;       // курс к рублю
+}
+
+const CURRENCY_TYPES: Record<CurrencyType, Omit<CurrencyInfo, "type">> = {
+  coins:    { label: "Монеты",    emoji: "🪙", rate: 0.05 },
+  crystals: { label: "Кристаллы", emoji: "💎", rate: 0.80 },
+  gold:     { label: "Золото",    emoji: "🥇", rate: 0.003 },
+  tokens:   { label: "Токены",    emoji: "🎫", rate: 1.20 },
+  points:   { label: "Очки",      emoji: "⭐", rate: 0.02 },
+  keys:     { label: "Ключи",     emoji: "🔑", rate: 150  },
+  rubles:   { label: "Рубли",     emoji: "💵", rate: 1.00 },
+};
+
 interface Game {
   id: string;
   name: string;
   genre: string;
   currency: string;
+  currencyType: CurrencyType;
   icon: string;
 }
 
 const GAMES: Game[] = [
-  { id: "cs2", name: "Counter-Strike 2", genre: "Шутер", currency: "Steam ₽", icon: "🎯" },
-  { id: "dota2", name: "Dota 2", genre: "MOBA", currency: "Steam ₽", icon: "⚔️" },
-  { id: "pubg", name: "PUBG", genre: "Батл-рояль", currency: "G-Coin", icon: "🪖" },
-  { id: "fortnite", name: "Fortnite", genre: "Батл-рояль", currency: "V-Bucks", icon: "🏗️" },
-  { id: "minecraft", name: "Minecraft", genre: "Выживание", currency: "Minecoins", icon: "⛏️" },
-  { id: "lol", name: "League of Legends", genre: "MOBA", currency: "RP", icon: "🏆" },
-  { id: "valorant", name: "Valorant", genre: "Шутер", currency: "VP", icon: "🔫" },
-  { id: "genshin", name: "Genshin Impact", genre: "RPG", currency: "Primogems", icon: "🌸" },
-  { id: "wow", name: "World of Warcraft", genre: "MMO", currency: "Gold", icon: "🐉" },
-  { id: "roblox", name: "Roblox", genre: "Платформер", currency: "Robux", icon: "🟥" },
-  { id: "apex", name: "Apex Legends", genre: "Батл-рояль", currency: "Apex Coins", icon: "💥" },
-  { id: "gta5", name: "GTA Online", genre: "Экшен", currency: "GTA$", icon: "🚗" },
-  { id: "rust", name: "Rust", genre: "Выживание", currency: "Steam ₽", icon: "🔧" },
-  { id: "lineage2", name: "Lineage 2", genre: "MMO", currency: "Adena", icon: "🗡️" },
-  { id: "warframe", name: "Warframe", genre: "Шутер", currency: "Platinum", icon: "🤖" },
-  { id: "hearthstone", name: "Hearthstone", genre: "Карточная", currency: "Gold", icon: "🃏" },
-  { id: "diablo4", name: "Diablo IV", genre: "RPG", currency: "Platinum", icon: "😈" },
-  { id: "overwatch2", name: "Overwatch 2", genre: "Шутер", currency: "Coins", icon: "🦸" },
-  { id: "ffxiv", name: "Final Fantasy XIV", genre: "MMO", currency: "MGP", icon: "✨" },
-  { id: "albion", name: "Albion Online", genre: "MMO", currency: "Silver", icon: "🛡️" },
-  { id: "poe", name: "Path of Exile", genre: "RPG", currency: "Chaos Orbs", icon: "🌀" },
-  { id: "tf2", name: "Team Fortress 2", genre: "Шутер", currency: "Keys", icon: "🔑" },
-  { id: "warzone", name: "Warzone", genre: "Батл-рояль", currency: "COD Points", icon: "💣" },
-  { id: "lost-ark", name: "Lost Ark", genre: "MMO", currency: "Gold", icon: "⚡" },
-  { id: "other", name: "Другая игра", genre: "Своя", currency: "GP", icon: "🎮" },
+  { id: "cs2",        name: "Counter-Strike 2",    genre: "Шутер",        currency: "Steam ₽",    currencyType: "rubles",   icon: "🎯" },
+  { id: "dota2",      name: "Dota 2",              genre: "MOBA",         currency: "Steam ₽",    currencyType: "rubles",   icon: "⚔️" },
+  { id: "pubg",       name: "PUBG",                genre: "Батл-рояль",   currency: "G-Coin",     currencyType: "coins",    icon: "🪖" },
+  { id: "fortnite",   name: "Fortnite",            genre: "Батл-рояль",   currency: "V-Bucks",    currencyType: "tokens",   icon: "🏗️" },
+  { id: "minecraft",  name: "Minecraft",           genre: "Выживание",    currency: "Minecoins",  currencyType: "coins",    icon: "⛏️" },
+  { id: "lol",        name: "League of Legends",   genre: "MOBA",         currency: "RP",         currencyType: "points",   icon: "🏆" },
+  { id: "valorant",   name: "Valorant",            genre: "Шутер",        currency: "VP",         currencyType: "points",   icon: "🔫" },
+  { id: "genshin",    name: "Genshin Impact",      genre: "RPG",          currency: "Primogems",  currencyType: "crystals", icon: "🌸" },
+  { id: "wow",        name: "World of Warcraft",   genre: "MMO",          currency: "Gold",       currencyType: "gold",     icon: "🐉" },
+  { id: "roblox",     name: "Roblox",              genre: "Платформер",   currency: "Robux",      currencyType: "tokens",   icon: "🟥" },
+  { id: "apex",       name: "Apex Legends",        genre: "Батл-рояль",   currency: "Apex Coins", currencyType: "coins",    icon: "💥" },
+  { id: "gta5",       name: "GTA Online",          genre: "Экшен",        currency: "GTA$",       currencyType: "rubles",   icon: "🚗" },
+  { id: "rust",       name: "Rust",                genre: "Выживание",    currency: "Steam ₽",    currencyType: "rubles",   icon: "🔧" },
+  { id: "lineage2",   name: "Lineage 2",           genre: "MMO",          currency: "Adena",      currencyType: "gold",     icon: "🗡️" },
+  { id: "warframe",   name: "Warframe",            genre: "Шутер",        currency: "Platinum",   currencyType: "crystals", icon: "🤖" },
+  { id: "hearthstone",name: "Hearthstone",         genre: "Карточная",    currency: "Gold",       currencyType: "gold",     icon: "🃏" },
+  { id: "diablo4",    name: "Diablo IV",           genre: "RPG",          currency: "Platinum",   currencyType: "crystals", icon: "😈" },
+  { id: "overwatch2", name: "Overwatch 2",         genre: "Шутер",        currency: "Coins",      currencyType: "coins",    icon: "🦸" },
+  { id: "ffxiv",      name: "Final Fantasy XIV",   genre: "MMO",          currency: "MGP",        currencyType: "points",   icon: "✨" },
+  { id: "albion",     name: "Albion Online",       genre: "MMO",          currency: "Silver",     currencyType: "gold",     icon: "🛡️" },
+  { id: "poe",        name: "Path of Exile",       genre: "RPG",          currency: "Chaos Orbs", currencyType: "crystals", icon: "🌀" },
+  { id: "tf2",        name: "Team Fortress 2",     genre: "Шутер",        currency: "Keys",       currencyType: "keys",     icon: "🔑" },
+  { id: "warzone",    name: "Warzone",             genre: "Батл-рояль",   currency: "COD Points", currencyType: "coins",    icon: "💣" },
+  { id: "lost-ark",   name: "Lost Ark",            genre: "MMO",          currency: "Gold",       currencyType: "gold",     icon: "⚡" },
+  { id: "other",      name: "Другая игра",         genre: "Своя",         currency: "GP",         currencyType: "coins",    icon: "🎮" },
 ];
 
 const INITIAL_HISTORY: WithdrawRequest[] = [
@@ -308,7 +328,9 @@ export default function Index() {
     setSubmitted(true);
   };
 
-  const rate = 0.85;
+  const currencyType = selectedGame ? selectedGame.currencyType : "coins";
+  const currencyInfo = CURRENCY_TYPES[currencyType];
+  const rate = currencyInfo.rate;
   const convertedAmount = amount ? Math.floor(parseFloat(amount) * rate) : 0;
 
   /* ── Экран выбора игры ── */
@@ -364,7 +386,12 @@ export default function Index() {
                     <p className="font-medium text-sm truncate">{game.id === "other" && customGameName.trim() ? customGameName.trim() : game.name}</p>
                     <p className="text-xs text-[var(--c-muted)] mt-0.5">{game.genre} · {game.currency}</p>
                   </div>
-                  <Icon name="ChevronRight" size={16} className="text-[var(--c-muted)] flex-shrink-0" />
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-[var(--c-muted)] hidden sm:block">
+                      {CURRENCY_TYPES[game.currencyType].emoji} {CURRENCY_TYPES[game.currencyType].label}
+                    </span>
+                    <Icon name="ChevronRight" size={16} className="text-[var(--c-muted)]" />
+                  </div>
                 </button>
               </div>
             ))}
@@ -404,11 +431,32 @@ export default function Index() {
           </button>
 
           {/* Game badge */}
-          <div className="flex items-center gap-3 rounded-2xl bg-[var(--c-surface)] border border-[var(--c-border)] px-5 py-4 mb-8">
+          <div className="flex items-center gap-3 rounded-2xl bg-[var(--c-surface)] border border-[var(--c-border)] px-5 py-4 mb-6">
             <span className="text-3xl leading-none">{selectedGame.icon}</span>
-            <div>
+            <div className="flex-1">
               <p className="font-semibold">{selectedGame.name}</p>
-              <p className="text-xs text-[var(--c-muted)] mt-0.5">{selectedGame.genre} · валюта: {selectedGame.currency}</p>
+              <p className="text-xs text-[var(--c-muted)] mt-0.5">{selectedGame.genre}</p>
+            </div>
+            <div className="text-right">
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-[var(--c-accent-bg)] border border-[var(--c-accent-dim)] text-[var(--c-accent)]">
+                {CURRENCY_TYPES[selectedGame.currencyType].emoji} {CURRENCY_TYPES[selectedGame.currencyType].label}
+              </span>
+              <p className="text-xs text-[var(--c-muted)] mt-1">{selectedGame.currency}</p>
+            </div>
+          </div>
+
+          {/* Currency info */}
+          <div className="rounded-xl bg-[var(--c-surface)] border border-[var(--c-border)] px-4 py-3 mb-5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{CURRENCY_TYPES[selectedGame.currencyType].emoji}</span>
+              <div>
+                <p className="text-xs font-medium">{CURRENCY_TYPES[selectedGame.currencyType].label}</p>
+                <p className="text-xs text-[var(--c-muted)]">Тип игровой валюты</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-[var(--c-muted)]">Курс вывода</p>
+              <p className="text-sm font-bold text-[var(--c-accent)]">1 {selectedGame.currency} = {CURRENCY_TYPES[selectedGame.currencyType].rate} ₽</p>
             </div>
           </div>
 
@@ -449,7 +497,7 @@ export default function Index() {
 
           {balanceDraft && !balanceError && (
             <p className="text-sm text-[var(--c-muted)] mt-2 mb-6">
-              ≈ {Math.floor(parseFloat(balanceDraft) * 0.85).toLocaleString("ru")} ₽ по текущему курсу
+              ≈ {Math.floor(parseFloat(balanceDraft) * CURRENCY_TYPES[selectedGame.currencyType].rate).toLocaleString("ru")} ₽ по курсу {CURRENCY_TYPES[selectedGame.currencyType].rate} ₽ / {selectedGame.currency}
             </p>
           )}
 
@@ -511,9 +559,14 @@ export default function Index() {
           <div className="animate-fade-in">
             {/* Balance Card */}
             <div className="mt-8 rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-8">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-lg leading-none">{selectedGame?.icon}</span>
-                <p className="text-xs uppercase tracking-widest text-[var(--c-muted)]">{selectedGame?.name} · Баланс</p>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg leading-none">{selectedGame?.icon}</span>
+                  <p className="text-xs uppercase tracking-widest text-[var(--c-muted)]">{selectedGame?.name} · Баланс</p>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-[var(--c-accent-bg)] border border-[var(--c-accent-dim)] text-[var(--c-accent)]">
+                  {currencyInfo.emoji} {currencyInfo.label}
+                </span>
               </div>
               <div className="flex items-end gap-3">
                 <span className="text-5xl font-bold leading-none tracking-tight">
@@ -524,7 +577,7 @@ export default function Index() {
               <div className="mt-4 pt-4 border-t border-[var(--c-border)] flex items-center gap-2">
                 <Icon name="TrendingUp" size={14} className="text-[var(--c-accent)]" />
                 <span className="text-sm text-[var(--c-muted)]">
-                  ≈ {Math.floor(gameBalance * rate).toLocaleString("ru")} ₽ · курс 1 {selectedGame?.currency ?? "GP"} = {rate} ₽
+                  ≈ {Math.floor(gameBalance * rate).toLocaleString("ru")} ₽ · 1 {selectedGame?.currency ?? "GP"} = {rate} ₽
                 </span>
               </div>
             </div>
@@ -608,12 +661,10 @@ export default function Index() {
 
             <div className="grid grid-cols-2 gap-3 mb-6">
               <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-5">
-                <div className="w-9 h-9 rounded-xl bg-[var(--c-accent)] flex items-center justify-center mb-4" style={{ opacity: 0.12 }}>
-                  <Icon name="Zap" size={18} className="text-[var(--c-accent)]" style={{ opacity: 1 }} />
-                </div>
-                <p className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-1">GamePoints</p>
+                <div className="text-2xl mb-3 leading-none">{currencyInfo.emoji}</div>
+                <p className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-1">{currencyInfo.label}</p>
                 <p className="text-2xl font-bold">{gameBalance.toLocaleString("ru")}</p>
-                <p className="text-xs text-[var(--c-muted)] mt-1">GP</p>
+                <p className="text-xs text-[var(--c-muted)] mt-1">{selectedGame?.currency ?? "GP"}</p>
               </div>
               <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-5">
                 <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center mb-4">
@@ -627,10 +678,15 @@ export default function Index() {
 
             {/* Converter */}
             <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-6">
-              <h3 className="font-semibold mb-4">Конвертер валюты</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Конвертер валюты</h3>
+                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--c-accent-bg)] text-[var(--c-accent)]">
+                  {currencyInfo.emoji} {currencyInfo.label} · {rate} ₽
+                </span>
+              </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-2 block">Игровая валюта (GP)</label>
+                  <label className="text-xs text-[var(--c-muted)] uppercase tracking-wider mb-2 block">{currencyInfo.label} ({selectedGame?.currency ?? "GP"})</label>
                   <input
                     type="number"
                     value={amount}
@@ -652,7 +708,7 @@ export default function Index() {
                 </div>
               </div>
               <p className="text-xs text-[var(--c-muted)] mt-3 text-center">
-                Курс: 1 GP = {rate} ₽ · комиссия зависит от метода вывода
+                Курс: 1 {selectedGame?.currency ?? "GP"} = {rate} ₽ · комиссия зависит от метода вывода
               </p>
             </div>
 
