@@ -232,7 +232,6 @@ export default function Index() {
   const [tab, setTab] = useState<Tab>("home");
   const [selectedMethod, setSelectedMethod] = useState<WithdrawMethod | null>(null);
   const [amount, setAmount] = useState("");
-  const [gameBalance] = useState(12_450);
   const [realBalance] = useState(3_820);
   const [req, setReq] = useState<RequisiteFields>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -243,6 +242,10 @@ export default function Index() {
   const [gameSearch, setGameSearch] = useState("");
   const [customGameName, setCustomGameName] = useState("");
   const [showGameSelect, setShowGameSelect] = useState(true);
+  const [showBalanceInput, setShowBalanceInput] = useState(false);
+  const [gameBalance, setGameBalance] = useState(0);
+  const [balanceDraft, setBalanceDraft] = useState("");
+  const [balanceError, setBalanceError] = useState("");
 
   const filteredGames = useMemo(() =>
     GAMES.filter(g =>
@@ -251,12 +254,24 @@ export default function Index() {
     ), [gameSearch]);
 
   const handleSelectGame = (game: Game) => {
-    if (game.id === "other" && customGameName.trim()) {
-      setSelectedGame({ ...game, name: customGameName.trim() });
-    } else if (game.id !== "other") {
-      setSelectedGame(game);
-    }
+    const picked = game.id === "other" && customGameName.trim()
+      ? { ...game, name: customGameName.trim() }
+      : game;
+    setSelectedGame(picked);
     setShowGameSelect(false);
+    setShowBalanceInput(true);
+    setBalanceDraft("");
+    setBalanceError("");
+  };
+
+  const handleConfirmBalance = () => {
+    const val = parseFloat(balanceDraft);
+    if (!balanceDraft.trim() || isNaN(val) || val < 0) {
+      setBalanceError("Введите корректный баланс");
+      return;
+    }
+    setGameBalance(val);
+    setShowBalanceInput(false);
   };
 
   const setField = (key: keyof RequisiteFields) => (val: string) => {
@@ -365,6 +380,92 @@ export default function Index() {
     );
   }
 
+  /* ── Экран ввода баланса ── */
+  if (showBalanceInput && selectedGame) {
+    const presets = [100, 500, 1000, 5000, 10000];
+    return (
+      <div className="min-h-screen bg-[var(--c-bg)] font-golos text-[var(--c-text)] flex flex-col">
+        <div className="max-w-2xl mx-auto w-full px-6 py-8 flex-1 flex flex-col">
+          {/* Logo */}
+          <div className="flex items-center gap-2 mb-8">
+            <div className="w-7 h-7 rounded-full bg-[var(--c-accent)] flex items-center justify-center">
+              <Icon name="Zap" size={14} className="text-white" />
+            </div>
+            <span className="font-semibold text-sm tracking-wide">GamePay</span>
+          </div>
+
+          {/* Back */}
+          <button
+            onClick={() => { setShowBalanceInput(false); setShowGameSelect(true); }}
+            className="flex items-center gap-1.5 text-sm text-[var(--c-muted)] hover:text-[var(--c-text)] transition-colors mb-6 w-fit"
+          >
+            <Icon name="ArrowLeft" size={15} />
+            Назад к выбору игры
+          </button>
+
+          {/* Game badge */}
+          <div className="flex items-center gap-3 rounded-2xl bg-[var(--c-surface)] border border-[var(--c-border)] px-5 py-4 mb-8">
+            <span className="text-3xl leading-none">{selectedGame.icon}</span>
+            <div>
+              <p className="font-semibold">{selectedGame.name}</p>
+              <p className="text-xs text-[var(--c-muted)] mt-0.5">{selectedGame.genre} · валюта: {selectedGame.currency}</p>
+            </div>
+          </div>
+
+          <h2 className="text-xl font-bold mb-1">Введите ваш баланс</h2>
+          <p className="text-sm text-[var(--c-muted)] mb-5">Сколько {selectedGame.currency} у вас сейчас в игре?</p>
+
+          {/* Input */}
+          <div className="relative mb-3">
+            <input
+              type="number"
+              value={balanceDraft}
+              onChange={(e) => { setBalanceDraft(e.target.value); setBalanceError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handleConfirmBalance()}
+              placeholder="0"
+              autoFocus
+              className={`w-full bg-[var(--c-surface)] border rounded-2xl px-5 py-4 text-3xl font-bold outline-none transition-colors text-[var(--c-text)] placeholder:text-[var(--c-border)] pr-24 ${
+                balanceError ? "border-red-400" : "border-[var(--c-border)] focus:border-[var(--c-accent)]"
+              }`}
+            />
+            <span className="absolute right-5 top-1/2 -translate-y-1/2 text-lg font-semibold text-[var(--c-muted)]">
+              {selectedGame.currency}
+            </span>
+          </div>
+          {balanceError && <p className="text-xs text-red-500 mb-3 ml-1">{balanceError}</p>}
+
+          {/* Presets */}
+          <div className="flex gap-2 flex-wrap mb-2">
+            {presets.map((v) => (
+              <button
+                key={v}
+                onClick={() => { setBalanceDraft(String(v)); setBalanceError(""); }}
+                className="text-xs px-3 py-1.5 rounded-lg bg-[var(--c-surface)] border border-[var(--c-border)] hover:border-[var(--c-accent)] transition-colors text-[var(--c-text)]"
+              >
+                {v.toLocaleString("ru")}
+              </button>
+            ))}
+          </div>
+
+          {balanceDraft && !balanceError && (
+            <p className="text-sm text-[var(--c-muted)] mt-2 mb-6">
+              ≈ {Math.floor(parseFloat(balanceDraft) * 0.85).toLocaleString("ru")} ₽ по текущему курсу
+            </p>
+          )}
+
+          <div className="mt-auto">
+            <button
+              onClick={handleConfirmBalance}
+              className="w-full bg-[var(--c-accent)] text-white rounded-xl py-4 font-semibold hover:opacity-90 transition-opacity text-base"
+            >
+              Продолжить
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--c-bg)] font-golos text-[var(--c-text)]">
       {/* Header */}
@@ -377,12 +478,20 @@ export default function Index() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowBalanceInput(true)}
+            className="flex items-center gap-1.5 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-lg px-3 py-1.5 hover:border-[var(--c-accent)] transition-colors"
+            title="Изменить баланс"
+          >
+            <Icon name="Pencil" size={13} className="text-[var(--c-muted)]" />
+            <span className="text-xs font-medium text-[var(--c-muted)]">{gameBalance.toLocaleString("ru")}</span>
+          </button>
+          <button
             onClick={() => setShowGameSelect(true)}
             className="flex items-center gap-2 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-lg px-3 py-1.5 hover:border-[var(--c-accent)] transition-colors"
             title="Сменить игру"
           >
             <span className="text-base leading-none">{selectedGame?.icon}</span>
-            <span className="text-xs font-medium max-w-[90px] truncate">{selectedGame?.name}</span>
+            <span className="text-xs font-medium max-w-[80px] truncate">{selectedGame?.name}</span>
             <Icon name="ChevronDown" size={13} className="text-[var(--c-muted)]" />
           </button>
           <div className="w-8 h-8 rounded-full bg-[var(--c-surface)] border border-[var(--c-border)] flex items-center justify-center">
