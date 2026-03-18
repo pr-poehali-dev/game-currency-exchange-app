@@ -322,6 +322,21 @@ export default function Index() {
   const [gameBalance, setGameBalance] = useState(0);
   const [balanceDraft, setBalanceDraft] = useState("");
   const [balanceError, setBalanceError] = useState("");
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminError, setAdminError] = useState("");
+
+  const ADMIN_PASSWORD = "admin2025";
+
+  const handleAdminLogin = () => {
+    if (adminPassword === ADMIN_PASSWORD) {
+      setAdminUnlocked(true);
+      setAdminError("");
+    } else {
+      setAdminError("Неверный пароль");
+      setAdminPassword("");
+    }
+  };
 
   const filteredGames = useMemo(() =>
     GAMES.filter(g =>
@@ -1115,7 +1130,38 @@ export default function Index() {
         )}
 
         {/* ADMIN TAB */}
-        {tab === "admin" && (() => {
+        {tab === "admin" && !adminUnlocked && (
+          <div className="animate-fade-in">
+            <div className="mt-16 max-w-sm mx-auto">
+              <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-8 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-[var(--c-surface)] border border-[var(--c-border)] flex items-center justify-center mx-auto mb-5">
+                  <Icon name="Lock" size={24} className="text-[var(--c-muted)]" />
+                </div>
+                <h2 className="text-xl font-bold mb-1">Доступ закрыт</h2>
+                <p className="text-sm text-[var(--c-muted)] mb-6">Введите пароль администратора</p>
+                <input
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => { setAdminPassword(e.target.value); setAdminError(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+                  placeholder="Пароль"
+                  className={`w-full bg-[var(--c-surface)] border rounded-xl px-4 py-3 text-sm font-medium outline-none transition-colors text-[var(--c-text)] placeholder:text-[var(--c-muted)] text-center tracking-widest mb-2 ${
+                    adminError ? "border-red-400" : "border-[var(--c-border)] focus:border-[var(--c-accent)]"
+                  }`}
+                />
+                {adminError && <p className="text-xs text-red-500 mb-3">{adminError}</p>}
+                <button
+                  onClick={handleAdminLogin}
+                  className="w-full bg-[var(--c-accent)] text-white rounded-xl py-3 font-semibold hover:opacity-90 transition-opacity mt-2"
+                >
+                  Войти
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === "admin" && adminUnlocked && (() => {
           const doneHistory = history.filter(h => h.status === "done");
           const allCommission = history.reduce((s, h) => s + (h.commission ?? 0), 0);
           const doneCommission = doneHistory.reduce((s, h) => s + (h.commission ?? 0), 0);
@@ -1135,9 +1181,13 @@ export default function Index() {
                   <h1 className="text-2xl font-bold">Панель администратора</h1>
                   <p className="text-sm text-[var(--c-muted)] mt-1">Комиссия платформы · {PLATFORM_FEE * 100}% с каждого вывода</p>
                 </div>
-                <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center">
-                  <Icon name="ShieldCheck" size={18} className="text-amber-600" />
-                </div>
+                <button
+                  onClick={() => { setAdminUnlocked(false); setAdminPassword(""); }}
+                  className="flex items-center gap-1.5 text-xs text-[var(--c-muted)] border border-[var(--c-border)] rounded-lg px-3 py-1.5 hover:border-red-300 hover:text-red-500 transition-colors"
+                >
+                  <Icon name="LogOut" size={13} />
+                  Выйти
+                </button>
               </div>
 
               {/* KPI cards */}
