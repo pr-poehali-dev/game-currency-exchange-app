@@ -248,6 +248,58 @@ function FieldSelect({ label, value, onChange, options, error }: {
   );
 }
 
+function PreviewCalc() {
+  const [previewAmount, setPreviewAmount] = useState("");
+  const [previewGame, setPreviewGame] = useState<Game | null>(null);
+
+  const previewRate = previewGame ? CURRENCY_TYPES[previewGame.currencyType].rate : null;
+  const previewRub = previewAmount && previewRate ? Math.floor(parseFloat(previewAmount) * previewRate) : null;
+
+  return (
+    <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-5 mb-6">
+      <p className="text-xs uppercase tracking-widest text-[var(--c-muted)] mb-3">Быстрый расчёт</p>
+      <div className="flex gap-2 mb-3">
+        <div className="relative flex-1">
+          <input
+            type="number"
+            value={previewAmount}
+            onChange={(e) => setPreviewAmount(e.target.value)}
+            placeholder="Сумма"
+            className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:border-[var(--c-accent)] transition-colors text-[var(--c-text)] placeholder:text-[var(--c-muted)]"
+          />
+        </div>
+        <select
+          value={previewGame?.id ?? ""}
+          onChange={(e) => setPreviewGame(GAMES.find(g => g.id === e.target.value) ?? null)}
+          className="flex-1 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:border-[var(--c-accent)] transition-colors text-[var(--c-text)] cursor-pointer appearance-none"
+        >
+          <option value="">Выбрать игру...</option>
+          {GAMES.filter(g => g.id !== "other").map(g => (
+            <option key={g.id} value={g.id}>{g.icon} {g.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {previewGame && previewRub !== null ? (
+        <div className="flex items-center justify-between rounded-xl bg-[var(--c-accent-bg)] border border-[var(--c-accent-dim)] px-4 py-3">
+          <div>
+            <p className="text-xs text-[var(--c-muted)]">{CURRENCY_TYPES[previewGame.currencyType].emoji} {previewAmount} {previewGame.currency}</p>
+            <p className="text-xs text-[var(--c-muted)] mt-0.5">курс: {previewRate} ₽ / {previewGame.currency}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-[var(--c-muted)]">Получите</p>
+            <p className="text-xl font-bold text-[var(--c-accent)]">≈ {previewRub.toLocaleString("ru")} ₽</p>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl bg-[var(--c-surface)] border border-[var(--c-border)] px-4 py-3 text-center">
+          <p className="text-xs text-[var(--c-muted)]">Введите сумму и выберите игру — покажем сколько получите</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Index() {
   const [tab, setTab] = useState<Tab>("home");
   const [selectedMethod, setSelectedMethod] = useState<WithdrawMethod | null>(null);
