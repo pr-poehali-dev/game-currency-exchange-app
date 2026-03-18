@@ -1,8 +1,20 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
-type Tab = "home" | "wallet" | "withdraw";
+type Tab = "home" | "wallet" | "withdraw" | "history";
 type WithdrawMethod = "card" | "qiwi" | "yoomoney" | "sbp" | "crypto" | "bank";
+type WithdrawStatus = "pending" | "processing" | "done" | "rejected";
+
+interface WithdrawRequest {
+  id: number;
+  method: WithdrawMethod;
+  methodLabel: string;
+  amountGp: number;
+  amountRub: number;
+  status: WithdrawStatus;
+  date: string;
+  requisite: string;
+}
 
 interface Transaction {
   id: number;
@@ -19,6 +31,20 @@ const TRANSACTIONS: Transaction[] = [
   { id: 4, type: "out", amount: 1200, desc: "Вывод в ЮMoney", date: "12 мар" },
   { id: 5, type: "in", amount: 600, desc: "Продажа скина", date: "10 мар" },
 ];
+
+const INITIAL_HISTORY: WithdrawRequest[] = [
+  { id: 1, method: "card", methodLabel: "Банковская карта", amountGp: 2000, amountRub: 1700, status: "done", date: "17 мар, 14:32", requisite: "**** 4231" },
+  { id: 2, method: "sbp", methodLabel: "СБП", amountGp: 1500, amountRub: 1275, status: "processing", date: "18 мар, 09:15", requisite: "+7 900 ***-**-12" },
+  { id: 3, method: "crypto", methodLabel: "Криптовалюта", amountGp: 5000, amountRub: 4250, status: "pending", date: "18 мар, 11:40", requisite: "TRC-20 · T***...abc" },
+  { id: 4, method: "yoomoney", methodLabel: "ЮMoney", amountGp: 800, amountRub: 680, status: "rejected", date: "12 мар, 18:05", requisite: "41001***XXX" },
+];
+
+const STATUS_CONFIG: Record<WithdrawStatus, { label: string; color: string; bg: string; icon: string }> = {
+  pending:    { label: "Ожидает",    color: "text-amber-600",  bg: "bg-amber-50 border-amber-100",  icon: "Clock" },
+  processing: { label: "В обработке", color: "text-blue-600", bg: "bg-blue-50 border-blue-100",    icon: "Loader" },
+  done:       { label: "Выполнен",   color: "text-green-600", bg: "bg-green-50 border-green-100",  icon: "CheckCircle" },
+  rejected:   { label: "Отклонён",  color: "text-red-500",   bg: "bg-red-50 border-red-100",      icon: "XCircle" },
+};
 
 const WITHDRAW_METHODS = [
   { id: "card" as WithdrawMethod, label: "Банковская карта", icon: "CreditCard", fee: "2%", time: "1–3 дня" },
@@ -175,10 +201,21 @@ export default function Index() {
   const [req, setReq] = useState<RequisiteFields>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [history, setHistory] = useState<WithdrawRequest[]>(INITIAL_HISTORY);
+  const [filterStatus, setFilterStatus] = useState<WithdrawStatus | "all">("all");
 
   const setField = (key: keyof RequisiteFields) => (val: string) => {
     setReq((prev) => ({ ...prev, [key]: val }));
     if (errors[key]) setErrors((prev) => { const e = { ...prev }; delete e[key]; return e; });
+  };
+
+  const getRequisiteLabel = (method: WithdrawMethod, r: RequisiteFields): string => {
+    if (method === "card") return r.cardNumber ? `**** ${r.cardNumber.replace(/\s/g, "").slice(-4)}` : "";
+    if (method === "sbp") return r.sbpPhone ? r.sbpPhone.slice(0, 6) + "***" + r.sbpPhone.slice(-2) : "";
+    if (method === "yoomoney" || method === "qiwi") return r.walletNumber ? r.walletNumber.slice(0, 5) + "***" : "";
+    if (method === "crypto") return r.cryptoNetwork ? `${r.cryptoNetwork.split(" ")[0]} · ${r.cryptoAddress?.slice(0, 4)}...` : "";
+    if (method === "bank") return r.bankFio ?? "";
+    return "";
   };
 
   const handleSubmit = () => {
@@ -186,6 +223,18 @@ export default function Index() {
     const errs = validate(selectedMethod, amount, req);
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
+    const methodData = WITHDRAW_METHODS.find(m => m.id === selectedMethod)!;
+    const newEntry: WithdrawRequest = {
+      id: Date.now(),
+      method: selectedMethod,
+      methodLabel: methodData.label,
+      amountGp: parseFloat(amount),
+      amountRub: Math.floor(parseFloat(amount) * rate),
+      status: "pending",
+      date: new Date().toLocaleString("ru", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+      requisite: getRequisiteLabel(selectedMethod, req),
+    };
+    setHistory((prev) => [newEntry, ...prev]);
     setSubmitted(true);
   };
 
@@ -590,20 +639,110 @@ export default function Index() {
                 <p className="text-sm text-[var(--c-muted)] mb-6">
                   Способ: <span className="font-semibold text-[var(--c-text)]">{WITHDRAW_METHODS.find(m => m.id === selectedMethod)?.label}</span>
                 </p>
-                <button
-                  onClick={() => { setSubmitted(false); setSelectedMethod(null); setAmount(""); setReq({}); setErrors({}); }}
-                  className="text-sm text-[var(--c-accent)] font-medium border border-[var(--c-accent)] rounded-xl px-5 py-2.5 hover:bg-[var(--c-accent)] hover:text-white transition-colors"
-                >
-                  Новый вывод
-                </button>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => { setSubmitted(false); setSelectedMethod(null); setAmount(""); setReq({}); setErrors({}); }}
+                    className="text-sm text-[var(--c-accent)] font-medium border border-[var(--c-accent)] rounded-xl px-5 py-2.5 hover:bg-[var(--c-accent)] hover:text-white transition-colors"
+                  >
+                    Новый вывод
+                  </button>
+                  <button
+                    onClick={() => { setSubmitted(false); setSelectedMethod(null); setAmount(""); setReq({}); setErrors({}); setTab("history"); }}
+                    className="text-sm font-medium bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-5 py-2.5 hover:border-[var(--c-accent)] transition-colors"
+                  >
+                    В историю
+                  </button>
+                </div>
               </div>
             )}
 
-            {!selectedMethod && (
+            {!selectedMethod && !submitted && (
               <div className="text-center py-8 text-sm text-[var(--c-muted)]">
                 Выберите способ вывода выше
               </div>
             )}
+          </div>
+        )}
+
+        {/* HISTORY TAB */}
+        {tab === "history" && (
+          <div className="animate-fade-in">
+            <div className="mt-8 mb-5 flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">История заявок</h1>
+                <p className="text-sm text-[var(--c-muted)] mt-1">{history.length} операций</p>
+              </div>
+              <div className="text-xs text-[var(--c-accent)] font-medium border border-[var(--c-accent)] rounded-lg px-3 py-1.5">
+                {history.filter(h => h.status === "pending" || h.status === "processing").length} активных
+              </div>
+            </div>
+
+            {/* Filter pills */}
+            <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+              {(["all", "pending", "processing", "done", "rejected"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setFilterStatus(s)}
+                  className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors font-medium ${
+                    filterStatus === s
+                      ? "bg-[var(--c-accent)] text-white border-[var(--c-accent)]"
+                      : "bg-[var(--c-surface)] text-[var(--c-muted)] border-[var(--c-border)]"
+                  }`}
+                >
+                  {s === "all" ? "Все" : STATUS_CONFIG[s].label}
+                </button>
+              ))}
+            </div>
+
+            {/* List */}
+            <div className="space-y-3">
+              {history
+                .filter(h => filterStatus === "all" || h.status === filterStatus)
+                .map((item) => {
+                  const st = STATUS_CONFIG[item.status];
+                  const methodInfo = WITHDRAW_METHODS.find(m => m.id === item.method);
+                  return (
+                    <div key={item.id} className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-5">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[var(--c-surface)] border border-[var(--c-border)] flex items-center justify-center flex-shrink-0">
+                            <Icon name={methodInfo?.icon ?? "Wallet"} size={18} className="text-[var(--c-muted)]" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">{item.methodLabel}</p>
+                            <p className="text-xs text-[var(--c-muted)] mt-0.5">{item.requisite}</p>
+                          </div>
+                        </div>
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${st.bg} ${st.color}`}>
+                          {st.label}
+                        </span>
+                      </div>
+
+                      <div className="flex items-end justify-between pt-3 border-t border-[var(--c-border)]">
+                        <div>
+                          <p className="text-xs text-[var(--c-muted)] mb-0.5">Выведено</p>
+                          <p className="font-bold">{item.amountGp.toLocaleString("ru")} GP</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-[var(--c-muted)] mb-0.5">Получено</p>
+                          <p className={`font-bold ${item.status === "done" ? "text-green-600" : "text-[var(--c-text)]"}`}>
+                            {item.status === "rejected" ? "—" : `≈ ${item.amountRub.toLocaleString("ru")} ₽`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-[var(--c-muted)] mt-2">{item.date}</p>
+                    </div>
+                  );
+                })}
+
+              {history.filter(h => filterStatus === "all" || h.status === filterStatus).length === 0 && (
+                <div className="text-center py-12">
+                  <Icon name="Inbox" size={32} className="text-[var(--c-muted)] mx-auto mb-3" />
+                  <p className="text-sm text-[var(--c-muted)]">Заявок с таким статусом нет</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
@@ -616,6 +755,7 @@ export default function Index() {
               { id: "home" as Tab, label: "Главная", icon: "Home" },
               { id: "wallet" as Tab, label: "Кошелёк", icon: "Wallet" },
               { id: "withdraw" as Tab, label: "Вывести", icon: "ArrowUpRight" },
+              { id: "history" as Tab, label: "История", icon: "ClipboardList" },
             ] as const
           ).map((n) => (
             <button
