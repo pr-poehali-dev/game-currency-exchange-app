@@ -50,8 +50,83 @@ interface RequisiteFields {
 const BANKS = ["Сбербанк", "Тинькофф", "ВТБ", "Альфа-Банк", "Газпромбанк", "Россельхозбанк", "Открытие", "Другой"];
 const CRYPTO_NETWORKS = ["TRC-20 (USDT)", "ERC-20 (USDT)", "BEP-20 (USDT)", "Bitcoin (BTC)", "Ethereum (ETH)", "TON"];
 
-function FieldInput({ label, value, onChange, placeholder, type = "text" }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+// --- Validators ---
+const validators: Record<string, (v: string) => string | null> = {
+  cardNumber: (v) => {
+    const digits = v.replace(/\s/g, "");
+    if (!digits) return "Введите номер карты";
+    if (!/^\d{16}$/.test(digits)) return "Номер карты — 16 цифр";
+    return null;
+  },
+  cardHolder: (v) => {
+    if (!v.trim()) return "Введите имя держателя";
+    if (!/^[A-Za-z\s]+$/.test(v)) return "Только латинские буквы";
+    if (v.trim().split(/\s+/).length < 2) return "Укажите имя и фамилию";
+    return null;
+  },
+  sbpPhone: (v) => {
+    const digits = v.replace(/\D/g, "");
+    if (!digits) return "Введите номер телефона";
+    if (digits.length !== 11 || !digits.startsWith("7")) return "Формат: +7 9XX XXX-XX-XX";
+    return null;
+  },
+  sbpBank: (v) => (!v ? "Выберите банк" : null),
+  walletNumber: (v) => (!v.trim() ? "Введите номер кошелька" : null),
+  cryptoNetwork: (v) => (!v ? "Выберите сеть" : null),
+  cryptoAddress: (v) => {
+    if (!v.trim()) return "Введите адрес кошелька";
+    if (v.trim().length < 20) return "Адрес слишком короткий";
+    return null;
+  },
+  bankFio: (v) => {
+    if (!v.trim()) return "Введите ФИО";
+    if (v.trim().split(/\s+/).length < 2) return "Укажите имя и фамилию";
+    return null;
+  },
+  bankBik: (v) => {
+    if (!v.trim()) return "Введите БИК";
+    if (!/^\d{9}$/.test(v.trim())) return "БИК — 9 цифр";
+    return null;
+  },
+  bankAccount: (v) => {
+    if (!v.trim()) return "Введите расчётный счёт";
+    if (!/^\d{20}$/.test(v.trim())) return "Расчётный счёт — 20 цифр";
+    return null;
+  },
+  amount: (v) => {
+    if (!v || parseFloat(v) <= 0) return "Введите сумму вывода";
+    if (parseFloat(v) < 100) return "Минимум 100 GP";
+    return null;
+  },
+};
+
+function validate(method: WithdrawMethod, amount: string, req: RequisiteFields): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const check = (key: string, val: string) => {
+    const err = validators[key]?.(val);
+    if (err) errors[key] = err;
+  };
+  check("amount", amount);
+  if (method === "card") { check("cardNumber", req.cardNumber ?? ""); check("cardHolder", req.cardHolder ?? ""); }
+  if (method === "sbp") { check("sbpPhone", req.sbpPhone ?? ""); check("sbpBank", req.sbpBank ?? ""); }
+  if (method === "yoomoney" || method === "qiwi") { check("walletNumber", req.walletNumber ?? ""); }
+  if (method === "crypto") { check("cryptoNetwork", req.cryptoNetwork ?? ""); check("cryptoAddress", req.cryptoAddress ?? ""); }
+  if (method === "bank") { check("bankFio", req.bankFio ?? ""); check("bankBik", req.bankBik ?? ""); check("bankAccount", req.bankAccount ?? ""); }
+  return errors;
+}
+
+function formatCardNumber(v: string) {
+  return v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+}
+function formatPhone(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 1) return d ? "+7" : "";
+  const n = d.startsWith("7") ? d : "7" + d;
+  return "+7" + (n[1] ? " " + n.slice(1, 4) : "") + (n[4] ? " " + n.slice(4, 7) : "") + (n[7] ? "-" + n.slice(7, 9) : "") + (n[9] ? "-" + n.slice(9, 11) : "");
+}
+
+function FieldInput({ label, value, onChange, placeholder, type = "text", error }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; error?: string;
 }) {
   return (
     <div>
@@ -61,14 +136,17 @@ function FieldInput({ label, value, onChange, placeholder, type = "text" }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--c-accent)] transition-colors text-[var(--c-text)] placeholder:text-[var(--c-muted)]"
+        className={`w-full bg-[var(--c-surface)] border rounded-xl px-4 py-3 text-sm font-medium outline-none transition-colors text-[var(--c-text)] placeholder:text-[var(--c-muted)] ${
+          error ? "border-red-400 focus:border-red-400" : "border-[var(--c-border)] focus:border-[var(--c-accent)]"
+        }`}
       />
+      {error && <p className="text-xs text-red-500 mt-1 ml-1">{error}</p>}
     </div>
   );
 }
 
-function FieldSelect({ label, value, onChange, options }: {
-  label: string; value: string; onChange: (v: string) => void; options: string[];
+function FieldSelect({ label, value, onChange, options, error }: {
+  label: string; value: string; onChange: (v: string) => void; options: string[]; error?: string;
 }) {
   return (
     <div>
@@ -76,11 +154,14 @@ function FieldSelect({ label, value, onChange, options }: {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--c-accent)] transition-colors text-[var(--c-text)] appearance-none cursor-pointer"
+        className={`w-full bg-[var(--c-surface)] border rounded-xl px-4 py-3 text-sm font-medium outline-none transition-colors text-[var(--c-text)] appearance-none cursor-pointer ${
+          error ? "border-red-400" : "border-[var(--c-border)] focus:border-[var(--c-accent)]"
+        }`}
       >
         <option value="">Выберите...</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
+      {error && <p className="text-xs text-red-500 mt-1 ml-1">{error}</p>}
     </div>
   );
 }
@@ -92,9 +173,21 @@ export default function Index() {
   const [gameBalance] = useState(12_450);
   const [realBalance] = useState(3_820);
   const [req, setReq] = useState<RequisiteFields>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
 
-  const setField = (key: keyof RequisiteFields) => (val: string) =>
+  const setField = (key: keyof RequisiteFields) => (val: string) => {
     setReq((prev) => ({ ...prev, [key]: val }));
+    if (errors[key]) setErrors((prev) => { const e = { ...prev }; delete e[key]; return e; });
+  };
+
+  const handleSubmit = () => {
+    if (!selectedMethod) return;
+    const errs = validate(selectedMethod, amount, req);
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+    setSubmitted(true);
+  };
 
   const rate = 0.85;
   const convertedAmount = amount ? Math.floor(parseFloat(amount) * rate) : 0;
@@ -322,7 +415,7 @@ export default function Index() {
               ))}
             </div>
 
-            {selectedMethod && (
+            {selectedMethod && !submitted && (
               <div className="animate-fade-in space-y-3 mb-4">
                 {/* Amount */}
                 <div className="rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-6">
@@ -331,15 +424,18 @@ export default function Index() {
                   <input
                     type="number"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => { setAmount(e.target.value); if (errors.amount) setErrors((p) => { const e = {...p}; delete e.amount; return e; }); }}
                     placeholder="Введите сумму"
-                    className="w-full bg-[var(--c-surface)] border border-[var(--c-border)] rounded-xl px-4 py-3 text-lg font-semibold outline-none focus:border-[var(--c-accent)] transition-colors text-[var(--c-text)]"
+                    className={`w-full bg-[var(--c-surface)] border rounded-xl px-4 py-3 text-lg font-semibold outline-none transition-colors text-[var(--c-text)] ${
+                      errors.amount ? "border-red-400" : "border-[var(--c-border)] focus:border-[var(--c-accent)]"
+                    }`}
                   />
+                  {errors.amount && <p className="text-xs text-red-500 mt-1 ml-1">{errors.amount}</p>}
                   <div className="flex gap-2 mt-2">
                     {[1000, 2000, 5000].map((v) => (
                       <button
                         key={v}
-                        onClick={() => setAmount(String(v))}
+                        onClick={() => { setAmount(String(v)); setErrors((p) => { const e = {...p}; delete e.amount; return e; }); }}
                         className="text-xs px-3 py-1.5 rounded-lg bg-[var(--c-surface)] border border-[var(--c-border)] hover:border-[var(--c-accent)] transition-colors text-[var(--c-text)]"
                       >
                         {v.toLocaleString("ru")} GP
@@ -357,14 +453,16 @@ export default function Index() {
                         <FieldInput
                           label="Номер карты"
                           value={req.cardNumber ?? ""}
-                          onChange={setField("cardNumber")}
+                          onChange={(v) => setField("cardNumber")(formatCardNumber(v))}
                           placeholder="0000 0000 0000 0000"
+                          error={errors.cardNumber}
                         />
                         <FieldInput
                           label="Имя держателя (латиницей)"
                           value={req.cardHolder ?? ""}
-                          onChange={setField("cardHolder")}
+                          onChange={(v) => setField("cardHolder")(v.toUpperCase())}
                           placeholder="IVAN IVANOV"
+                          error={errors.cardHolder}
                         />
                       </>
                     )}
@@ -374,15 +472,17 @@ export default function Index() {
                         <FieldInput
                           label="Номер телефона"
                           value={req.sbpPhone ?? ""}
-                          onChange={setField("sbpPhone")}
+                          onChange={(v) => setField("sbpPhone")(formatPhone(v))}
                           placeholder="+7 900 000-00-00"
                           type="tel"
+                          error={errors.sbpPhone}
                         />
                         <FieldSelect
                           label="Банк получателя"
                           value={req.sbpBank ?? ""}
                           onChange={setField("sbpBank")}
                           options={BANKS}
+                          error={errors.sbpBank}
                         />
                       </>
                     )}
@@ -393,6 +493,7 @@ export default function Index() {
                         value={req.walletNumber ?? ""}
                         onChange={setField("walletNumber")}
                         placeholder={selectedMethod === "yoomoney" ? "41001XXXXXXXXX" : "+7 900 000-00-00"}
+                        error={errors.walletNumber}
                       />
                     )}
 
@@ -403,12 +504,14 @@ export default function Index() {
                           value={req.cryptoNetwork ?? ""}
                           onChange={setField("cryptoNetwork")}
                           options={CRYPTO_NETWORKS}
+                          error={errors.cryptoNetwork}
                         />
                         <FieldInput
                           label="Адрес кошелька"
                           value={req.cryptoAddress ?? ""}
                           onChange={setField("cryptoAddress")}
                           placeholder="T... / 0x... / bc1..."
+                          error={errors.cryptoAddress}
                         />
                         <p className="text-xs text-[var(--c-muted)] bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
                           ⚠️ Проверьте адрес и сеть — ошибочные переводы невозможно вернуть
@@ -423,20 +526,21 @@ export default function Index() {
                           value={req.bankFio ?? ""}
                           onChange={setField("bankFio")}
                           placeholder="Иванов Иван Иванович"
+                          error={errors.bankFio}
                         />
                         <FieldInput
                           label="БИК банка"
                           value={req.bankBik ?? ""}
                           onChange={setField("bankBik")}
                           placeholder="044525225"
-                          type="number"
+                          error={errors.bankBik}
                         />
                         <FieldInput
                           label="Расчётный счёт"
                           value={req.bankAccount ?? ""}
                           onChange={setField("bankAccount")}
-                          placeholder="40817810XXXXXXXXXX"
-                          type="number"
+                          placeholder="40817810099910001111"
+                          error={errors.bankAccount}
                         />
                       </>
                     )}
@@ -463,10 +567,35 @@ export default function Index() {
                       <span className="text-[var(--c-accent)]">≈ {convertedAmount.toLocaleString("ru")} ₽</span>
                     </div>
                   </div>
-                  <button className="w-full bg-[var(--c-accent)] text-white rounded-xl py-3.5 font-semibold hover:opacity-90 transition-opacity">
+                  <button
+                    onClick={handleSubmit}
+                    className="w-full bg-[var(--c-accent)] text-white rounded-xl py-3.5 font-semibold hover:opacity-90 transition-opacity"
+                  >
                     Подтвердить вывод
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Success screen */}
+            {submitted && (
+              <div className="animate-fade-in rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] p-8 text-center mb-4">
+                <div className="w-14 h-14 rounded-full bg-green-50 border border-green-100 flex items-center justify-center mx-auto mb-4">
+                  <Icon name="Check" size={28} className="text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">Заявка отправлена</h3>
+                <p className="text-sm text-[var(--c-muted)] mb-1">
+                  Сумма: <span className="font-semibold text-[var(--c-text)]">{amount} GP → ≈ {convertedAmount.toLocaleString("ru")} ₽</span>
+                </p>
+                <p className="text-sm text-[var(--c-muted)] mb-6">
+                  Способ: <span className="font-semibold text-[var(--c-text)]">{WITHDRAW_METHODS.find(m => m.id === selectedMethod)?.label}</span>
+                </p>
+                <button
+                  onClick={() => { setSubmitted(false); setSelectedMethod(null); setAmount(""); setReq({}); setErrors({}); }}
+                  className="text-sm text-[var(--c-accent)] font-medium border border-[var(--c-accent)] rounded-xl px-5 py-2.5 hover:bg-[var(--c-accent)] hover:text-white transition-colors"
+                >
+                  Новый вывод
+                </button>
               </div>
             )}
 
